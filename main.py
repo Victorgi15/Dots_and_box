@@ -79,7 +79,6 @@ def scorer(arêtes_horizontales, arêtes_verticales):
 
 def fin_partie(arêtes_horizontales,arêtes_verticales):
     if(np.any(arêtes_horizontales==0) or np.any(arêtes_verticales == 0)):
-        print("partie non terminée \n")
         return(False)
     else:
         print("Fin de partie")
@@ -100,8 +99,16 @@ def tour_de_jeu(score_j1, score_j2, arêtes_horizontales, arêtes_verticales, to
         afficher_grille(N)
         x1=int(input("x1= ? "))
         y1=int(input("y1= ? "))
-        x2=int(input("x2= ? "))
-        y2=int(input("y2= ? "))
+        direction=input("right (r) or down (d) ? ")
+        if direction == "r":
+            y2=y1
+            x2=x1+1
+        elif direction == "d":
+            y2=y1+1
+            x2=x1
+        else :
+            y2=-1
+            x2=-1
         if (jouer_arete(x1, y1, x2, y2)):
             if ( scorer(arêtes_horizontales, arêtes_verticales) == score_local):
                 current_j=2
@@ -122,8 +129,16 @@ def tour_de_jeu(score_j1, score_j2, arêtes_horizontales, arêtes_verticales, to
         afficher_grille(N)
         x1=int(input("x1= ? "))
         y1=int(input("y1= ? "))
-        x2=int(input("x2= ? "))
-        y2=int(input("y2= ? "))
+        direction=input("right (r) or down (d) ? ")
+        if direction == "r":
+            y2=y1
+            x2=x1+1
+        elif direction == "d":
+            y2=y1+1
+            x2=x1
+        else :
+            y2=-1
+            x2=-1
         if (jouer_arete(x1, y1, x2, y2)):
             if ( scorer(arêtes_horizontales, arêtes_verticales) == score_local):
                 current_j=1
