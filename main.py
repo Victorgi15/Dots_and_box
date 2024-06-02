@@ -85,10 +85,10 @@ def fin_partie(arêtes_horizontales,arêtes_verticales):
         afficher_grille(N)
         return(True)
 
-def tour_de_jeu(score_j1, score_j2, arêtes_horizontales, arêtes_verticales, tour):
+def tour_de_jeu(score_j1, score_j2, arêtes_horizontales, arêtes_verticales, tour, recompense_j1, recompense_j2):
     current_j=1
     tour += 1
-
+    
     while(current_j==1):
         score_local=scorer(arêtes_horizontales, arêtes_verticales)
         print("tour :" , tour)
@@ -114,6 +114,7 @@ def tour_de_jeu(score_j1, score_j2, arêtes_horizontales, arêtes_verticales, to
                 current_j=2
             else:
                 score_j1=(scorer(arêtes_horizontales, arêtes_verticales)- score_local)
+                recompense_j1+=10
         else: 
             print("Coup non valable, merci de rejouer un coup valable")
         if fin_partie(arêtes_horizontales,arêtes_verticales):
@@ -144,6 +145,7 @@ def tour_de_jeu(score_j1, score_j2, arêtes_horizontales, arêtes_verticales, to
                 current_j=1
             else:
                 score_j2=(scorer(arêtes_horizontales, arêtes_verticales)- score_local)
+                recompense_j2+=10
         else: 
             print("Coup non valable, merci de rejouer un coup valable")
         if fin_partie(arêtes_horizontales,arêtes_verticales):
@@ -154,13 +156,21 @@ def tour_de_jeu(score_j1, score_j2, arêtes_horizontales, arêtes_verticales, to
 N=5
 score_j1=0
 score_j2=0
+recompense_j1=0
+recompense_j2=0
 angles,arêtes_horizontales,arêtes_verticales=generate_board(N)
 tour=0
 while (not fin_partie(arêtes_horizontales,arêtes_verticales)):
-    score_j1, score_j2=tour_de_jeu(score_j1, score_j2, arêtes_horizontales, arêtes_verticales,tour)
+    score_j1, score_j2=tour_de_jeu(score_j1, score_j2, arêtes_horizontales, arêtes_verticales,tour, recompense_j1, recompense_j2)
 if score_j1>score_j2:
+    recompense_j1+=1000
+    recompense_j2-=1000
     print("Félicitation joueur J1 tu as gagné ! ")
 elif score_j1 == score_j2:
+    recompense_j1+=250
+    recompense_j2+=250
     print ("Egalité, bien joué à vous deux !")
 else: 
-        print("Félicitation joueur J2 tu as gagné ! ")
+    recompense_j2+=1000
+    recompense_j1-=250
+    print("Félicitation joueur J2 tu as gagné ! ")
