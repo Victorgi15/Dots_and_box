@@ -1,0 +1,45 @@
+services:
+  frontend:
+    env_file:
+      - .env
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE: ${VITE_API_BASE}
+    image: ${CI_REGISTRY_IMAGE:-local}/dots-and-boxes-frontend:${APP_VERSION:-latest}
+    expose:
+      - "80"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dots-and-boxes-frontend.rule=Host(`${FRONTEND_HOST}`)"
+      - "traefik.http.routers.dots-and-boxes-frontend.entrypoints=websecure"
+      - "traefik.http.routers.dots-and-boxes-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.dots-and-boxes-frontend.loadbalancer.server.port=80"
+      - "traefik.http.routers.dots-and-boxes-frontend.priority=1"
+    networks:
+      - dokploy-network
+
+  backend:
+    env_file:
+      - .env
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: ${CI_REGISTRY_IMAGE:-local}/dots-and-boxes-backend:${APP_VERSION:-latest}
+    expose:
+      - "8000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dots-and-boxes-backend.rule=Host(`${BACKEND_HOST}`)"
+      - "traefik.http.routers.dots-and-boxes-backend.entrypoints=websecure"
+      - "traefik.http.routers.dots-and-boxes-backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.dots-and-boxes-backend.loadbalancer.server.port=8000"
+      - "traefik.http.routers.dots-and-boxes-backend.priority=100"
+    networks:
+      - dokploy-network
+
+networks:
+  dokploy-network:
+    external: true
+    name: dokploy-network
