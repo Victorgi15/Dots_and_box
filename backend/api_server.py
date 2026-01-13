@@ -1,15 +1,25 @@
 import json
+import os
 import re
+import sys
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, Optional
 
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
 from game_logic import GameState
+from bots.mcts_puct import choose_move as choose_mcts_move
+from bots.random_bot import choose_move as choose_random_move
 
 
 GAMES: Dict[str, GameState] = {}
 GAME_RE = re.compile(r"^/api/game/([a-f0-9]+)$")
 MOVE_RE = re.compile(r"^/api/game/([a-f0-9]+)/move$")
+BOT_MOVE_RE = re.compile(r"^/api/game/([a-f0-9]+)/bot-move$")
+BOTS = {"random": choose_random_move, "mcts": choose_mcts_move}
 
 
 class DotsAndBoxesHandler(BaseHTTPRequestHandler):
@@ -101,6 +111,61 @@ class DotsAndBoxesHandler(BaseHTTPRequestHandler):
                 self._send_json(400, {"error": result["message"], "state": game.serialize(), "result": result})
                 return
             self._send_json(200, {"state": game.serialize(), "result": result})
+            return
+
+        match = BOT_MOVE_RE.match(self.path)
+        if match:
+            game_id = match.group(1)
+            game = GAMES.get(game_id)
+            if not game:
+                self._send_json(404, {"error": "Game not found."})
+                return
+            if game.done:
+                self._send_json(400, {"error": "Game is over.", "state": game.serialize()})
+                return
+            data = self._read_json()
+            if data is None:
+                self._send_json(400, {"error": "Invalid JSON.", "state": game.serialize()})
+                return
+            bot_name = "random"
+            if isinstance(data, dict):
+                bot_name = str(data.get("bot", "random")).strip().lower()
+            bot = BOTS.get(bot_name)
+            if not bot:
+                self._send_json(
+                    400,
+                    {
+                        "error": "Unknown bot.",
+                        "available": sorted(BOTS.keys()),
+                        "state": game.serialize(),
+                    },
+                )
+                return
+            try:
+                move = bot(game)
+            except ValueError as exc:
+                self._send_json(
+                    400,
+                    {"error": str(exc), "state": game.serialize(), "bot": bot_name},
+                )
+                return
+            except Exception:
+                self._send_json(
+                    500,
+                    {"error": "Bot failed.", "state": game.serialize(), "bot": bot_name},
+                )
+                return
+            if not move:
+                self._send_json(400, {"error": "No moves available.", "state": game.serialize()})
+                return
+            result = game.play_move(move["x"], move["y"], move["direction"])
+            if not result["valid"]:
+                self._send_json(400, {"error": result["message"], "state": game.serialize(), "result": result})
+                return
+            self._send_json(
+                200,
+                {"state": game.serialize(), "result": result, "move": move, "bot": bot_name},
+            )
             return
 
         self._send_json(404, {"error": "Not found."})
