@@ -29,16 +29,16 @@ def default_policy_value(_: DotsBoxesState) -> Tuple[object, float]:
 
 def _default_simulations(size: int) -> int:
     if size <= 3:
-        return 1200
+        return 700
     if size == 4:
-        return 800
+        return 500
     if size == 5:
-        return 600
+        return 360
     if size == 6:
-        return 450
+        return 260
     if size == 7:
-        return 320
-    return 240
+        return 190
+    return 150
 
 
 def _adjacent_boxes(move: Move, size: int) -> List[Tuple[int, int]]:
@@ -219,7 +219,7 @@ def _rollout_value(state: DotsBoxesState) -> float:
     sim = _clone_state(state)
     start_player = sim.current_player
     max_moves = (sim.size + 1) * sim.size * 2
-    rollout_limit = min(max_moves, 30 + sim.size * 14)
+    rollout_limit = min(max_moves, 18 + sim.size * 9)
     for _ in range(rollout_limit):
         if sim.done:
             break
@@ -230,8 +230,6 @@ def _rollout_value(state: DotsBoxesState) -> float:
         comp_id, comp_sizes = _two_edge_components(sim, edge_counts)
         scored: List[Tuple[Move, int, int, int]] = []
         best_gain = 0
-        min_risk = None
-        min_chain = None
         for move in moves:
             gain, risk = _move_effects(sim, move, edge_counts)
             components = set()
@@ -243,8 +241,6 @@ def _rollout_value(state: DotsBoxesState) -> float:
             chain_len = sum(comp_sizes[cid] for cid in components)
             scored.append((move, gain, risk, chain_len))
             best_gain = max(best_gain, gain)
-            min_risk = risk if min_risk is None else min(min_risk, risk)
-            min_chain = chain_len if min_chain is None else min(min_chain, chain_len)
         if best_gain > 0:
             candidates = [move for move, gain, _, _ in scored if gain == best_gain]
         else:
@@ -252,10 +248,11 @@ def _rollout_value(state: DotsBoxesState) -> float:
             if safe:
                 candidates = safe
             else:
+                min_key = min((risk, chain_len) for _, _, risk, chain_len in scored)
                 candidates = [
                     move
                     for move, _, risk, chain_len in scored
-                    if chain_len == min_chain and risk == min_risk
+                    if (risk, chain_len) == min_key
                 ]
         move = random.choice(candidates)
         result = sim.play_move(move[0], move[1], move[2])
