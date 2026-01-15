@@ -288,6 +288,71 @@ def legal_moves(state: DotsBoxesState) -> List[Move]:
     return moves
 
 
+def _state_key(state: DotsBoxesState) -> Tuple[object, ...]:
+    return (
+        state.current_player,
+        tuple(tuple(row) for row in state.horizontal),
+        tuple(tuple(row) for row in state.vertical),
+        tuple(tuple(row) for row in state.boxes),
+    )
+
+
+def _capture_moves(state: DotsBoxesState) -> List[Tuple[Move, int]]:
+    edge_counts = _box_edge_counts(state)
+    captures: List[Tuple[Move, int]] = []
+    for move in legal_moves(state):
+        completed, _ = _move_effects(state, move, edge_counts)
+        if completed > 0:
+            captures.append((move, completed))
+    return captures
+
+
+def _max_capture_chain(
+    state: DotsBoxesState, cache: Optional[Dict[Tuple[object, ...], int]] = None
+) -> int:
+    if cache is None:
+        cache = {}
+    key = _state_key(state)
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
+    captures = _capture_moves(state)
+    if not captures:
+        cache[key] = 0
+        return 0
+    player = state.current_player
+    best = 0
+    for move, completed in captures:
+        sim = _clone_state(state)
+        result = sim.play_move(move[0], move[1], move[2])
+        if not result.get("valid", False):
+            continue
+        gained = int(result.get("completed", completed))
+        if sim.current_player != player:
+            total = gained
+        else:
+            total = gained + _max_capture_chain(sim, cache)
+        if total > best:
+            best = total
+    cache[key] = best
+    return best
+
+
+def _shallow_move_score(state: DotsBoxesState, move: Move) -> float:
+    sim = _clone_state(state)
+    result = sim.play_move(move[0], move[1], move[2])
+    if not result.get("valid", False):
+        return -float("inf")
+    completed = int(result.get("completed", 0))
+    if completed > 0:
+        chain_bonus = _max_capture_chain(sim)
+        return float(completed + chain_bonus)
+    if sim.current_player == state.current_player:
+        return 0.0
+    opponent_chain = _max_capture_chain(sim)
+    return -float(opponent_chain)
+
+
 def terminal_value(state: DotsBoxesState) -> Optional[float]:
     if not state.done:
         return None
@@ -475,7 +540,7 @@ class MCTS:
         return distribution
 
 
-def choose_move(
+def choose_move_mcts(
     state: DotsBoxesState,
     n_simulations: Optional[int] = None,
     c_puct: float = 1.4,
@@ -489,3 +554,37 @@ def choose_move(
         return None
     best = max(distribution, key=lambda item: item["prob"])
     return {"x": best["x"], "y": best["y"], "direction": best["direction"]}
+
+
+def choose_move_shallow(state: DotsBoxesState) -> Optional[Dict[str, object]]:
+    if state.done:
+        return None
+    moves = legal_moves(state)
+    if not moves:
+        return None
+    scored: List[Tuple[float, Move]] = []
+    for move in moves:
+        scored.append((_shallow_move_score(state, move), move))
+    best_score = max(score for score, _ in scored)
+    candidates = [move for score, move in scored if score == best_score]
+    if not candidates:
+        return None
+    move = random.choice(candidates)
+    return {"x": move[0], "y": move[1], "direction": move[2]}
+
+
+def choose_move(
+    state: DotsBoxesState,
+    n_simulations: Optional[int] = None,
+    c_puct: float = 1.4,
+    temperature: float = 0.0,
+    mode: str = "shallow",
+) -> Optional[Dict[str, object]]:
+    if mode.strip().lower() == "mcts":
+        return choose_move_mcts(
+            state,
+            n_simulations=n_simulations,
+            c_puct=c_puct,
+            temperature=temperature,
+        )
+    return choose_move_shallow(state)
