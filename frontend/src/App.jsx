@@ -4,6 +4,7 @@ const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000";
 const BOARD_SIZES = [3, 4, 5, 6, 7, 8];
 const PLAYER_OPTIONS = [
   { value: "human", label: "Player" },
+  { value: "chatgpt", label: "ChatGPT bot" },
   { value: "random", label: "Random bot" },
   { value: "mcts", label: "MCTS bot" },
 ];

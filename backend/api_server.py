@@ -11,6 +11,7 @@ if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
 from game_logic import GameState
+from bots.chatgpt_bot import choose_move as choose_chatgpt_move
 from bots.mcts_puct import choose_move as choose_mcts_move
 from bots.random_bot import choose_move as choose_random_move
 
@@ -19,7 +20,11 @@ GAMES: Dict[str, GameState] = {}
 GAME_RE = re.compile(r"^/api/game/([a-f0-9]+)$")
 MOVE_RE = re.compile(r"^/api/game/([a-f0-9]+)/move$")
 BOT_MOVE_RE = re.compile(r"^/api/game/([a-f0-9]+)/bot-move$")
-BOTS = {"random": choose_random_move, "mcts": choose_mcts_move}
+BOTS = {
+    "chatgpt": choose_chatgpt_move,
+    "random": choose_random_move,
+    "mcts": choose_mcts_move,
+}
 
 
 class DotsAndBoxesHandler(BaseHTTPRequestHandler):
