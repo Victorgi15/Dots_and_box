@@ -6,6 +6,7 @@ import shutil
 import time
 from typing import Iterable, List, Tuple
 
+from .arena import evaluate_neural_policies, evaluate_neural_vs_mcts
 from .checkpoint import default_checkpoint_paths, load_checkpoint, save_checkpoint
 from .network import DotsBoxesNet, ModelPolicy, NeuralPolicy
 from .replay_buffer import ReplayBuffer
@@ -74,6 +75,51 @@ def _init_model(model_path: str, size: int, device: str) -> DotsBoxesNet:
             raise ValueError("Checkpoint board size does not match.")
         model.load_state_dict(state_dict)
     return model
+
+
+def _default_model_path(root: str, size: int) -> str:
+    _, latest_path = default_checkpoint_paths(root, size, 0)
+    return latest_path
+
+
+def _resolve_model_arg(model_arg: str, root: str, size: int) -> str:
+    return model_arg or _default_model_path(root, size)
+
+
+def _gate_candidate(
+    candidate_policy: ModelPolicy,
+    checkpoint_path: str,
+    latest_path: str,
+    args: argparse.Namespace,
+    step: int,
+) -> bool:
+    save_checkpoint(candidate_policy.model, checkpoint_path, board_size=args.size, step=step)
+    if args.gate_threshold <= 0:
+        shutil.copy2(checkpoint_path, latest_path)
+        return True
+    if not os.path.exists(latest_path):
+        shutil.copy2(checkpoint_path, latest_path)
+        return True
+    gate_sim = args.gate_simulations or args.simulations
+    incumbent = NeuralPolicy(latest_path, board_size=args.size, device=args.device)
+    result = evaluate_neural_policies(
+        candidate_policy,
+        incumbent,
+        size=args.size,
+        games=args.gate_games,
+        n_simulations=gate_sim,
+        c_puct=args.c_puct,
+    )
+    win_rate = result["win_rate_a"]
+    print(
+        f"Gate: win_rate={win_rate:.2f} (wins={result['wins_a']}, "
+        f"losses={result['wins_b']}, draws={result['draws']})"
+    )
+    if win_rate >= args.gate_threshold:
+        shutil.copy2(checkpoint_path, latest_path)
+        return True
+    print("Gate rejected: keeping previous latest.")
+    return False
 
 
 def _cmd_self_play(args: argparse.Namespace) -> None:
@@ -150,9 +196,11 @@ def _cmd_run(args: argparse.Namespace) -> None:
         device=args.device,
     )
     checkpoint_path, latest_path = default_checkpoint_paths(args.root, args.size, args.step)
-    save_checkpoint(model, checkpoint_path, board_size=args.size, step=args.step)
-    shutil.copy2(checkpoint_path, latest_path)
+    candidate = ModelPolicy(model, device=args.device)
+    accepted = _gate_candidate(candidate, checkpoint_path, latest_path, args, args.step)
     print(f"Saved checkpoint to {checkpoint_path}")
+    if accepted:
+        print("Gate accepted: updated latest.")
 
 
 def _cmd_stream(args: argparse.Namespace) -> None:
@@ -196,11 +244,29 @@ def _cmd_stream(args: argparse.Namespace) -> None:
         )
         policy = ModelPolicy(model, device=args.device)
         checkpoint_path, latest_path = default_checkpoint_paths(args.root, args.size, step)
-        save_checkpoint(model, checkpoint_path, board_size=args.size, step=step)
-        shutil.copy2(checkpoint_path, latest_path)
+        _gate_candidate(policy, checkpoint_path, latest_path, args, step)
         cycle += 1
         step += 1
         print(f"Cycle {cycle}: saved {checkpoint_path}")
+
+
+def _cmd_eval(args: argparse.Namespace) -> None:
+    model_path = _resolve_model_arg(args.model, args.root, args.size)
+    policy = NeuralPolicy(model_path, board_size=args.size, device=args.device)
+    result = evaluate_neural_vs_mcts(
+        policy,
+        size=args.size,
+        games=args.games,
+        neural_simulations=args.simulations,
+        neural_c_puct=args.c_puct,
+        mcts_simulations=args.mcts_simulations,
+        mcts_c_puct=args.mcts_c_puct,
+    )
+    print(
+        "Neural vs MCTS: "
+        f"wins={result['wins']} losses={result['losses']} draws={result['draws']} "
+        f"win_rate={result['win_rate']:.2f}"
+    )
 
 
 def _add_common_args(parser: argparse.ArgumentParser) -> None:
@@ -225,6 +291,12 @@ def _add_train_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--root", type=str, default=os.getcwd())
 
 
+def _add_gate_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--gate-threshold", type=float, default=0.55)
+    parser.add_argument("--gate-games", type=int, default=20)
+    parser.add_argument("--gate-simulations", type=int, default=0)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Neural MCTS CLI")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -244,6 +316,7 @@ def main() -> None:
     run = sub.add_parser("run", help="Self-play + training in one command.")
     _add_common_args(run)
     _add_train_args(run)
+    _add_gate_args(run)
     run.add_argument("--games", type=int, default=10)
     run.add_argument("--save-data", type=str, default="")
     run.set_defaults(func=_cmd_run)
@@ -251,10 +324,19 @@ def main() -> None:
     stream = sub.add_parser("stream", help="Self-play and train in cycles for a fixed time.")
     _add_common_args(stream)
     _add_train_args(stream)
+    _add_gate_args(stream)
     stream.add_argument("--minutes", type=float, required=True)
     stream.add_argument("--games-per-cycle", type=int, default=200)
     stream.add_argument("--save-data", type=str, default="")
     stream.set_defaults(func=_cmd_stream)
+
+    evaluate = sub.add_parser("eval", help="Evaluate neural model vs pure MCTS.")
+    _add_common_args(evaluate)
+    evaluate.add_argument("--root", type=str, default=os.getcwd())
+    evaluate.add_argument("--games", type=int, default=20)
+    evaluate.add_argument("--mcts-simulations", type=int, default=200)
+    evaluate.add_argument("--mcts-c-puct", type=float, default=1.4)
+    evaluate.set_defaults(func=_cmd_eval)
 
     args = parser.parse_args()
     args.func(args)

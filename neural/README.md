@@ -25,6 +25,16 @@ Streaming for a fixed time:
 python -m neural.cli stream --size 5 --minutes 420 --games-per-cycle 200 --epochs 1 --step 1
 ```
 
+Evaluation vs pure MCTS:
+```
+python -m neural.cli eval --size 5 --games 30 --simulations 80 --mcts-simulations 200
+```
+
+Gate new checkpoints:
+- `--gate-threshold` (default 0.55)
+- `--gate-games` (default 20)
+- `--gate-simulations` (default 0 = use `--simulations`)
+
 ## Checkpoint format
 Checkpoints are `torch.save` dicts with:
 - `format_version` (int)
