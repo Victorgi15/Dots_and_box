@@ -5,6 +5,7 @@ ENV/
 .venv/
 .myenv/
 myenv/
+.env
 
 # Python files
 *.pyc
