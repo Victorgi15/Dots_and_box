@@ -20,6 +20,11 @@ python -m neural.cli self-play --size 5 --games 50 --out data/self_play.jsonl
 python -m neural.cli train --size 5 --data data/self_play.jsonl --epochs 2 --step 2
 ```
 
+Streaming for a fixed time:
+```
+python -m neural.cli stream --size 5 --minutes 420 --games-per-cycle 200 --epochs 1 --step 1
+```
+
 ## Checkpoint format
 Checkpoints are `torch.save` dicts with:
 - `format_version` (int)

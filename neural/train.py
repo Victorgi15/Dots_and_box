@@ -1,4 +1,4 @@
-from typing import Iterable, List, Tuple
+from typing import Iterable, List, Optional, Tuple
 
 try:
     import torch
@@ -32,10 +32,15 @@ def train_on_buffer(
     epochs: int = 1,
     lr: float = 1e-3,
     device: str = "cpu",
+    model: Optional[DotsBoxesNet] = None,
 ) -> DotsBoxesNet:
     if torch is None:  # pragma: no cover - optional dependency
         raise ImportError("torch is required for training") from _torch_import_error
-    model = DotsBoxesNet(board_size).to(device)
+    if model is None:
+        model = DotsBoxesNet(board_size)
+    elif getattr(model, "board_size", board_size) != board_size:
+        raise ValueError("Model board size mismatch.")
+    model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     model.train()
 
