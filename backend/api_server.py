@@ -13,6 +13,7 @@ if ROOT_DIR not in sys.path:
 from game_logic import GameState
 from bots.chatgpt_bot import choose_move as choose_chatgpt_move
 from bots.mcts_puct import choose_move as choose_mcts_move
+from bots.neural_mcts_bot import choose_move as choose_neural_move
 from bots.random_bot import choose_move as choose_random_move
 
 
@@ -24,6 +25,7 @@ BOTS = {
     "chatgpt": choose_chatgpt_move,
     "random": choose_random_move,
     "mcts": choose_mcts_move,
+    "neural": choose_neural_move,
 }
 
 
