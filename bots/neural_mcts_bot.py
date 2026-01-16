@@ -2,7 +2,6 @@ import os
 from typing import Dict, List, Optional, Protocol, Tuple
 
 from neural.mcts import NeuralMCTS
-from neural.network import NeuralPolicy
 
 
 class DotsBoxesState(Protocol):
@@ -102,6 +101,12 @@ class NeuralMCTSBot:
     ) -> None:
         if not os.path.exists(model_path):
             raise ValueError(f"Neural model not found at {model_path}")
+        try:
+            from neural.network import NeuralPolicy
+        except ImportError as exc:
+            raise ValueError(
+                "Neural bot requires PyTorch. Install torch to use this bot."
+            ) from exc
         self.policy = NeuralPolicy(model_path, board_size=size, device=device)
         self.n_simulations = n_simulations
         self.c_puct = c_puct

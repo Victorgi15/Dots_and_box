@@ -13,8 +13,13 @@ if ROOT_DIR not in sys.path:
 from game_logic import GameState
 from bots.chatgpt_bot import choose_move as choose_chatgpt_move
 from bots.mcts_puct import choose_move as choose_mcts_move
-from bots.neural_mcts_bot import choose_move as choose_neural_move
 from bots.random_bot import choose_move as choose_random_move
+
+try:
+    from bots.neural_mcts_bot import choose_move as choose_neural_move
+except Exception:
+    def choose_neural_move(*_args, **_kwargs):
+        raise ValueError("Neural bot unavailable (install PyTorch to enable it).")
 
 
 GAMES: Dict[str, GameState] = {}

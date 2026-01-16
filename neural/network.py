@@ -4,9 +4,7 @@ try:
     import torch
     import torch.nn as nn
 except ImportError as exc:  # pragma: no cover - optional dependency
-    torch = None
-    nn = None
-    _torch_import_error = exc
+    raise ImportError("PyTorch is required for neural models.") from exc
 
 from .checkpoint import load_checkpoint
 from .encoder import encode_state, policy_size
@@ -51,8 +49,6 @@ class DotsBoxesNet(nn.Module):
 
 class NeuralPolicy:
     def __init__(self, model_path: str, board_size: int, device: Optional[str] = None) -> None:
-        if torch is None:  # pragma: no cover - optional dependency
-            raise ImportError("torch is required for NeuralPolicy") from _torch_import_error
         self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
         self.model = DotsBoxesNet(board_size).to(self.device)
         state_dict, meta = load_checkpoint(model_path, device=self.device)
@@ -62,8 +58,6 @@ class NeuralPolicy:
         self.model.eval()
 
     def predict(self, state):
-        if torch is None:  # pragma: no cover - optional dependency
-            raise ImportError("torch is required for NeuralPolicy") from _torch_import_error
         with torch.no_grad():
             encoded = encode_state(state, device=self.device)
             policy_logits, value = self.model(encoded)
@@ -73,15 +67,11 @@ class NeuralPolicy:
 
 class ModelPolicy:
     def __init__(self, model: DotsBoxesNet, device: Optional[str] = None) -> None:
-        if torch is None:  # pragma: no cover - optional dependency
-            raise ImportError("torch is required for ModelPolicy") from _torch_import_error
         self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
         self.model = model.to(self.device)
         self.model.eval()
 
     def predict(self, state):
-        if torch is None:  # pragma: no cover - optional dependency
-            raise ImportError("torch is required for ModelPolicy") from _torch_import_error
         with torch.no_grad():
             encoded = encode_state(state, device=self.device)
             policy_logits, value = self.model(encoded)
