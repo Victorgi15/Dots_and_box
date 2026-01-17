@@ -48,6 +48,7 @@ export default function App() {
     "Choose players, then start a new game."
   );
   const [busy, setBusy] = useState(false);
+  const [botHold, setBotHold] = useState(false);
   const [lastMove, setLastMove] = useState(null);
 
   const getPlayerType = (playerNumber) =>
@@ -56,6 +57,7 @@ export default function App() {
   const applyMoveResponse = (data, moveOverride = null) => {
     setState(data.state);
     setLastMove(moveOverride || data.move || null);
+    setBotHold(false);
     if (data.state.done) {
       setStatus(winnerMessage(data.state));
       return;
@@ -71,6 +73,7 @@ export default function App() {
 
   const startGame = async (nextSize = size) => {
     setBusy(true);
+    setBotHold(false);
     setStatus("Creating a new game...");
     try {
       const data = await fetchJson(`${API_BASE}/api/game`, {
@@ -129,6 +132,7 @@ export default function App() {
       applyMoveResponse(data);
     } catch (error) {
       setStatus(error.message || "Bot move rejected.");
+      setBotHold(true);
       if (error.data?.state) {
         setState(error.data.state);
       }
@@ -138,7 +142,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (!gameId || !state || busy || state.done) {
+    if (!gameId || !state || busy || botHold || state.done) {
       return;
     }
     const currentType = getPlayerType(state.currentPlayer);
@@ -291,7 +295,10 @@ export default function App() {
               Player 1
               <select
                 value={player1Type}
-                onChange={(event) => setPlayer1Type(event.target.value)}
+                onChange={(event) => {
+                  setPlayer1Type(event.target.value);
+                  setBotHold(false);
+                }}
                 disabled={busy}
               >
                 {PLAYER_OPTIONS.map((option) => (
@@ -305,7 +312,10 @@ export default function App() {
               Player 2
               <select
                 value={player2Type}
-                onChange={(event) => setPlayer2Type(event.target.value)}
+                onChange={(event) => {
+                  setPlayer2Type(event.target.value);
+                  setBotHold(false);
+                }}
                 disabled={busy}
               >
                 {PLAYER_OPTIONS.map((option) => (
