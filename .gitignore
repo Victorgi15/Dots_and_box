@@ -16,6 +16,10 @@ build/
 dist/
 *.egg-info/
 models/
+!models/
+models/*
+!models/size_5/
+!models/size_5/latest.pt
 
 # IDEs and editors
 .vscode/
