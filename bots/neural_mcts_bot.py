@@ -16,6 +16,7 @@ class DotsBoxesState(Protocol):
 
 Move = Dict[str, object]
 
+SUPPORTED_SIZE = 5
 _MODEL_KEYS = ("NEURAL_MODEL_PATH", "DOTSBOXES_MODEL_PATH")
 _SIM_KEYS = ("NEURAL_MCTS_SIMULATIONS",)
 _C_PUCT_KEYS = ("NEURAL_MCTS_C_PUCT",)
@@ -130,6 +131,8 @@ _BOT_CACHE: Dict[int, NeuralMCTSBot] = {}
 
 
 def choose_move(state: DotsBoxesState) -> Optional[Move]:
+    if state.size != SUPPORTED_SIZE:
+        raise ValueError(f"Neural bot supports only {SUPPORTED_SIZE}x{SUPPORTED_SIZE} for now.")
     if state.size not in _BOT_CACHE:
         model_path = _resolve_model_path(state.size)
         n_sim = _parse_int(_get_env_value(_SIM_KEYS), 200)
